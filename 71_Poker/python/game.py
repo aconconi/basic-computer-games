@@ -27,7 +27,6 @@ class PokerGame:  # pylint: disable=too-few-public-methods
         """Initialise game state and allocate both sides' starting stack."""
         self.human = Human(PokerGame.INITIAL_MONEY)
         self.dealer = Dealer(PokerGame.INITIAL_MONEY)
-        self.deck: Deck
         self.pot = 0
 
     # ------------------------------------------------------------------

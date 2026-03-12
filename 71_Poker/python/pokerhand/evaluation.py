@@ -1,5 +1,6 @@
 """Hand evaluation logic."""
 
+import functools
 from collections import Counter
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -12,6 +13,7 @@ if TYPE_CHECKING:
     from .hand import Hand
 
 
+@functools.total_ordering
 class HandEvaluation:
     """
     Evaluator and Result container for a poker hand.
@@ -156,7 +158,8 @@ class HandEvaluation:
             for _, c in reversed(ctx.rank_indexed)
             if c.rank == ctx.ranks_by_freq[0]
         )
-        self.discard_indices = [idx for idx, _ in ctx.rank_indexed[0:3]]
+        keep_rank = ctx.ranks_by_freq[0]
+        self.discard_indices = [i for i, c in enumerate(ctx.cards) if c.rank != keep_rank]
         return True
 
     def _check_two_pair(self, ctx: _EvaluationContext) -> bool:
@@ -183,7 +186,8 @@ class HandEvaluation:
             for _, c in reversed(ctx.rank_indexed)
             if c.rank == ctx.ranks_by_freq[0]
         )
-        self.discard_indices = [idx for idx, _ in ctx.rank_indexed[0:3]]
+        keep_rank = ctx.ranks_by_freq[0]
+        self.discard_indices = [i for i, c in enumerate(ctx.cards) if c.rank != keep_rank]
         return True
 
     def _check_partial_straight(self, ctx: _EvaluationContext) -> bool:
