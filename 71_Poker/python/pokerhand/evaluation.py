@@ -25,10 +25,12 @@ class HandEvaluation:
     hand_rank: HandRank
     high_card: Card
     discard_indices: list[int]
+    _ctx: "_EvaluationContext | None"
 
     def __init__(self, hand: "Hand"):
         """Perform evaluation of the provided hand."""
         self.discard_indices = []
+        self._ctx = None
         self._evaluate(hand)
 
     def __str__(self) -> str:
@@ -68,6 +70,9 @@ class HandEvaluation:
             other.high_card.rank.value,
         )
 
+    def __hash__(self) -> int:
+        return hash((self.hand_rank, self.high_card.rank.value))
+
     class _EvaluationContext:  # pylint: disable=too-few-public-methods
         """Intermediate calculations for hand evaluation."""
 
@@ -92,9 +97,9 @@ class HandEvaluation:
 
     def _evaluate(self, hand: "Hand") -> None:
         """Internal algorithm to determine hand strength."""
-        ctx = self._EvaluationContext(hand)
+        self._ctx = self._EvaluationContext(hand)
 
-        checks: list[Callable[[HandEvaluation._EvaluationContext], bool]] = [
+        checks: list[Callable[[], bool]] = [
             self._check_four_of_a_kind,
             self._check_full_house,
             self._check_flush,
@@ -107,104 +112,104 @@ class HandEvaluation:
         ]
 
         for check in checks:
-            if check(ctx):
+            if check():
                 break
 
-    def _check_four_of_a_kind(self, ctx: _EvaluationContext) -> bool:
-        if ctx.freq_pattern != (4, 1):
+    def _check_four_of_a_kind(self) -> bool:
+        if self._ctx.freq_pattern != (4, 1):
             return False
         self.hand_rank = HandRank.FOUR_OF_A_KIND
         self.high_card = next(
             c
-            for _, c in reversed(ctx.rank_indexed)
-            if c.rank == ctx.ranks_by_freq[0]
+            for _, c in reversed(self._ctx.rank_indexed)
+            if c.rank == self._ctx.ranks_by_freq[0]
         )
         return True
 
-    def _check_full_house(self, ctx: _EvaluationContext) -> bool:
-        if ctx.freq_pattern != (3, 2):
+    def _check_full_house(self) -> bool:
+        if self._ctx.freq_pattern != (3, 2):
             return False
         self.hand_rank = HandRank.FULL_HOUSE
         self.high_card = next(
             c
-            for _, c in reversed(ctx.rank_indexed)
-            if c.rank == ctx.ranks_by_freq[0]
+            for _, c in reversed(self._ctx.rank_indexed)
+            if c.rank == self._ctx.ranks_by_freq[0]
         )
         return True
 
-    def _check_flush(self, ctx: _EvaluationContext) -> bool:
-        if len({c.suit for c in ctx.cards}) != 1:
+    def _check_flush(self) -> bool:
+        if len({c.suit for c in self._ctx.cards}) != 1:
             return False
         self.hand_rank = HandRank.FLUSH
-        self.high_card = max(ctx.cards, key=lambda c: c.rank)
+        self.high_card = self._ctx.rank_indexed[4][1]
         return True
 
-    def _check_straight(self, ctx: _EvaluationContext) -> bool:
+    def _check_straight(self) -> bool:
         if (
-            len(set(ctx.sorted_ranks)) == 5
-            and ctx.sorted_ranks[4].value - ctx.sorted_ranks[0].value == 4
+            len(set(self._ctx.sorted_ranks)) == 5
+            and self._ctx.sorted_ranks[4].value - self._ctx.sorted_ranks[0].value == 4
         ):
             self.hand_rank = HandRank.STRAIGHT
-            self.high_card = ctx.rank_indexed[4][1]
+            self.high_card = self._ctx.rank_indexed[4][1]
             return True
         return False
 
-    def _check_three_of_a_kind(self, ctx: _EvaluationContext) -> bool:
-        if ctx.freq_pattern != (3, 1, 1):
+    def _check_three_of_a_kind(self) -> bool:
+        if self._ctx.freq_pattern != (3, 1, 1):
             return False
         self.hand_rank = HandRank.THREE_OF_A_KIND
         self.high_card = next(
             c
-            for _, c in reversed(ctx.rank_indexed)
-            if c.rank == ctx.ranks_by_freq[0]
+            for _, c in reversed(self._ctx.rank_indexed)
+            if c.rank == self._ctx.ranks_by_freq[0]
         )
-        keep_rank = ctx.ranks_by_freq[0]
-        self.discard_indices = [i for i, c in enumerate(ctx.cards) if c.rank != keep_rank]
+        keep_rank = self._ctx.ranks_by_freq[0]
+        self.discard_indices = [i for i, c in enumerate(self._ctx.cards) if c.rank != keep_rank]
         return True
 
-    def _check_two_pair(self, ctx: _EvaluationContext) -> bool:
-        if ctx.freq_pattern != (2, 2, 1):
+    def _check_two_pair(self) -> bool:
+        if self._ctx.freq_pattern != (2, 2, 1):
             return False
         self.hand_rank = HandRank.TWO_PAIR
         self.high_card = next(
             c
-            for _, c in reversed(ctx.rank_indexed)
-            if c.rank == ctx.ranks_by_freq[0]
+            for _, c in reversed(self._ctx.rank_indexed)
+            if c.rank == self._ctx.ranks_by_freq[0]
         )
-        keep = {ctx.ranks_by_freq[0], ctx.ranks_by_freq[1]}
+        keep = {self._ctx.ranks_by_freq[0], self._ctx.ranks_by_freq[1]}
         self.discard_indices = [
-            i for i, c in enumerate(ctx.cards) if c.rank not in keep
+            i for i, c in enumerate(self._ctx.cards) if c.rank not in keep
         ]
         return True
 
-    def _check_pair(self, ctx: _EvaluationContext) -> bool:
-        if ctx.freq_pattern != (2, 1, 1, 1):
+    def _check_pair(self) -> bool:
+        if self._ctx.freq_pattern != (2, 1, 1, 1):
             return False
         self.hand_rank = HandRank.PAIR
         self.high_card = next(
             c
-            for _, c in reversed(ctx.rank_indexed)
-            if c.rank == ctx.ranks_by_freq[0]
+            for _, c in reversed(self._ctx.rank_indexed)
+            if c.rank == self._ctx.ranks_by_freq[0]
         )
-        keep_rank = ctx.ranks_by_freq[0]
-        self.discard_indices = [i for i, c in enumerate(ctx.cards) if c.rank != keep_rank]
+        keep_rank = self._ctx.ranks_by_freq[0]
+        self.discard_indices = [i for i, c in enumerate(self._ctx.cards) if c.rank != keep_rank]
         return True
 
-    def _check_partial_straight(self, ctx: _EvaluationContext) -> bool:
-        if ctx.sorted_ranks[3].value - ctx.sorted_ranks[0].value == 3:
+    def _check_partial_straight(self) -> bool:
+        if self._ctx.sorted_ranks[3].value - self._ctx.sorted_ranks[0].value == 3:
             self.hand_rank = HandRank.PARTIAL_STRAIGHT
-            self.high_card = ctx.rank_indexed[3][1]
-            self.discard_indices = [ctx.rank_indexed[4][0]]
+            self.high_card = self._ctx.rank_indexed[3][1]
+            self.discard_indices = [self._ctx.rank_indexed[4][0]]
             return True
-        if ctx.sorted_ranks[4].value - ctx.sorted_ranks[1].value == 3:
+        if self._ctx.sorted_ranks[4].value - self._ctx.sorted_ranks[1].value == 3:
             self.hand_rank = HandRank.PARTIAL_STRAIGHT
-            self.high_card = ctx.rank_indexed[4][1]
-            self.discard_indices = [ctx.rank_indexed[0][0]]
+            self.high_card = self._ctx.rank_indexed[4][1]
+            self.discard_indices = [self._ctx.rank_indexed[0][0]]
             return True
         return False
 
-    def _check_schmaltz(self, ctx: _EvaluationContext) -> bool:
+    def _check_schmaltz(self) -> bool:
         self.hand_rank = HandRank.SCHMALTZ
-        self.high_card = ctx.rank_indexed[4][1]
-        self.discard_indices = [idx for idx, _ in ctx.rank_indexed[0:4]]
+        self.high_card = self._ctx.rank_indexed[4][1]
+        self.discard_indices = [idx for idx, _ in self._ctx.rank_indexed[0:3]]
         return True

@@ -3,7 +3,7 @@
 import random
 from enum import Enum, auto
 
-from cards import Deck
+from cards import CardRank, Deck
 from pokerhand import Hand, HandEvaluation, HandRank
 
 from .player import Player
@@ -60,13 +60,13 @@ class Dealer(Player):
 
     def _is_hand_weak(self, result: HandEvaluation, is_redeal: bool) -> bool:
         """Check whether the hand qualifies as 'weak'."""
-        # Original logic: IF Z>5 THEN Weak.
-        # HandRank 1-4 are Schmaltz, Partial Straight, Pair, Two-Pair.
-        if result.hand_rank < HandRank.THREE_OF_A_KIND:
-            # Partial Straight is only weak on re-evaluation
-            if result.hand_rank == HandRank.PARTIAL_STRAIGHT:
-                return is_redeal
-            return True
+        rank = result.hand_rank
+        if rank < HandRank.PAIR:
+            # Schmaltz is always weak; partial straight only on re-deal
+            return rank != HandRank.PARTIAL_STRAIGHT or is_redeal
+        if rank <= HandRank.TWO_PAIR:
+            # Pair/two-pair is weak only when high card is Eight or lower
+            return result.high_card.rank <= CardRank.EIGHT
         return False
 
     def get_opening_action(self) -> Player.Action:
