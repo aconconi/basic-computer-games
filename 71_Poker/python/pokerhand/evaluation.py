@@ -36,23 +36,21 @@ class HandEvaluation:
         rank = self.hand_rank
         card = self.high_card
 
-        match rank:
-            case HandRank.SCHMALTZ | HandRank.PARTIAL_STRAIGHT:
-                return f"{rank}, {card.rank} high"
-            case (
-                HandRank.PAIR
-                | HandRank.TWO_PAIR
-                | HandRank.THREE_OF_A_KIND
-                | HandRank.FULL_HOUSE
-                | HandRank.FOUR_OF_A_KIND
-            ):
-                return f"{rank} {card.rank}'s"
-            case HandRank.STRAIGHT:
-                return f"{rank}, {card.rank} high"
-            case HandRank.FLUSH:
-                return f"{rank} {card.suit}"
-            case _:
-                return f"{rank} {card.rank}"
+        if rank in (HandRank.SCHMALTZ, HandRank.PARTIAL_STRAIGHT):
+            return f"{rank}, {card.rank} high"
+        if rank in (
+            HandRank.PAIR,
+            HandRank.TWO_PAIR,
+            HandRank.THREE_OF_A_KIND,
+            HandRank.FULL_HOUSE,
+            HandRank.FOUR_OF_A_KIND,
+        ):
+            return f"{rank} {card.rank}'s"
+        if rank == HandRank.STRAIGHT:
+            return f"{rank}, {card.rank} high"
+        if rank == HandRank.FLUSH:
+            return f"{rank} {card.suit}"
+        return f"{rank} {card.rank}"
 
     def __lt__(self, other: "HandEvaluation") -> bool:
         return (self.hand_rank, self.high_card.rank.value) < (
@@ -146,7 +144,9 @@ class HandEvaluation:
     def _check_straight(self) -> bool:
         if (
             len(set(self._ctx.sorted_ranks)) == 5
-            and self._ctx.sorted_ranks[4].value - self._ctx.sorted_ranks[0].value == 4
+            and self._ctx.sorted_ranks[4].value
+            - self._ctx.sorted_ranks[0].value
+            == 4
         ):
             self.hand_rank = HandRank.STRAIGHT
             self.high_card = self._ctx.rank_indexed[4][1]
@@ -163,7 +163,9 @@ class HandEvaluation:
             if c.rank == self._ctx.ranks_by_freq[0]
         )
         keep_rank = self._ctx.ranks_by_freq[0]
-        self.discard_indices = [i for i, c in enumerate(self._ctx.cards) if c.rank != keep_rank]
+        self.discard_indices = [
+            i for i, c in enumerate(self._ctx.cards) if c.rank != keep_rank
+        ]
         return True
 
     def _check_two_pair(self) -> bool:
@@ -191,16 +193,24 @@ class HandEvaluation:
             if c.rank == self._ctx.ranks_by_freq[0]
         )
         keep_rank = self._ctx.ranks_by_freq[0]
-        self.discard_indices = [i for i, c in enumerate(self._ctx.cards) if c.rank != keep_rank]
+        self.discard_indices = [
+            i for i, c in enumerate(self._ctx.cards) if c.rank != keep_rank
+        ]
         return True
 
     def _check_partial_straight(self) -> bool:
-        if self._ctx.sorted_ranks[3].value - self._ctx.sorted_ranks[0].value == 3:
+        if (
+            self._ctx.sorted_ranks[3].value - self._ctx.sorted_ranks[0].value
+            == 3
+        ):
             self.hand_rank = HandRank.PARTIAL_STRAIGHT
             self.high_card = self._ctx.rank_indexed[3][1]
             self.discard_indices = [self._ctx.rank_indexed[4][0]]
             return True
-        if self._ctx.sorted_ranks[4].value - self._ctx.sorted_ranks[1].value == 3:
+        if (
+            self._ctx.sorted_ranks[4].value - self._ctx.sorted_ranks[1].value
+            == 3
+        ):
             self.hand_rank = HandRank.PARTIAL_STRAIGHT
             self.high_card = self._ctx.rank_indexed[4][1]
             self.discard_indices = [self._ctx.rank_indexed[0][0]]
