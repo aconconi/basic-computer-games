@@ -25,12 +25,11 @@ class HandEvaluation:
     hand_rank: HandRank
     high_card: Card
     discard_indices: list[int]
-    _ctx: "_EvaluationContext | None"
+    _ctx: "_EvaluationContext"
 
     def __init__(self, hand: "Hand"):
         """Perform evaluation of the provided hand."""
         self.discard_indices = []
-        self._ctx = None
         self._evaluate(hand)
 
     def __str__(self) -> str:
