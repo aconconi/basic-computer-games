@@ -137,32 +137,31 @@ class PokerGame:  # pylint: disable=too-few-public-methods
         while True:
             human_action = self._get_human_action()
 
-            match human_action:
-                case Player.Action.FOLD:
-                    # Human fold always ends betting loop (hand ends)
-                    self._settle_bets()
-                    self._award_pot(dealer_wins=True)
-                    return False
+            if human_action == Player.Action.FOLD:
+                # Human fold always ends betting loop (hand ends)
+                self._settle_bets()
+                self._award_pot(dealer_wins=True)
+                return False
 
-                case Player.Action.CALL:
-                    # Human call always ends betting loop (proceed to next phase)
-                    self._settle_bets()
+            if human_action == Player.Action.CALL:
+                # Human call always ends betting loop (proceed to next phase)
+                self._settle_bets()
+                return True
+
+            if human_action == Player.Action.CHECK:
+                # Pre-draw: human check ends human's turn.
+                # Post-draw: dealer gets a chance to bet/check back.
+                if not post_draw or self._handle_human_post_draw_check():
                     return True
+                # If dealer bet, we fall through and loop for human response
 
-                case Player.Action.CHECK:
-                    # Pre-draw: human check ends human's turn.
-                    # Post-draw: dealer gets a chance to bet/check back.
-                    if not post_draw or self._handle_human_post_draw_check():
-                        return True
-                    # If dealer bet, we fall through and loop for human response
+            elif human_action == Player.Action.RAISE:
+                if self._handle_human_raise():
+                    return True
+                # If dealer re-raised, we fall through and loop for human response
 
-                case Player.Action.RAISE:
-                    if self._handle_human_raise():
-                        return True
-                    # If dealer re-raised, we fall through and loop for human response
-
-                case _:
-                    raise ValueError(f"Unknown player action: {human_action}")
+            else:
+                raise ValueError(f"Unknown player action: {human_action}")
 
     def _handle_human_post_draw_check(self) -> bool:
         """Process dealer response to human check. Returns True if phase ends."""
@@ -184,25 +183,23 @@ class PokerGame:  # pylint: disable=too-few-public-methods
         if self.dealer.money < self.dealer.bet:
             self._dealer_try_raise_funds()
 
-        match dealer_action:
-            case Player.Action.FOLD:
-                print("I fold.")
-                self._settle_bets()
-                self._award_pot(dealer_wins=False)
-                return True  # Round ends
+        if dealer_action == Player.Action.FOLD:
+            print("I fold.")
+            self._settle_bets()
+            self._award_pot(dealer_wins=False)
+            return True  # Round ends
 
-            case Player.Action.CALL:
-                print("I'll see you.")
-                self._settle_bets()
-                return True
+        if dealer_action == Player.Action.CALL:
+            print("I'll see you.")
+            self._settle_bets()
+            return True
 
-            case Player.Action.RAISE:
-                raise_amount = self.dealer.bet - self.human.bet
-                print(f"I'll see you, and raise you {raise_amount}")
-                return False
+        if dealer_action == Player.Action.RAISE:
+            raise_amount = self.dealer.bet - self.human.bet
+            print(f"I'll see you, and raise you {raise_amount}")
+            return False
 
-            case _:
-                raise ValueError(f"Unknown dealer action: {dealer_action}")
+        raise ValueError(f"Unknown dealer action: {dealer_action}")
 
     def _get_human_action(self) -> Player.Action:
         """Prompt user for a bet and return the resulting Action."""
